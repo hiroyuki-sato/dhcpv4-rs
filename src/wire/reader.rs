@@ -67,6 +67,9 @@ impl<'a> Reader<'a> {
     pub fn read_array<const N: usize>(&mut self) -> Result<[u8; N], Error> {
         Ok(self.take(N)?.try_into().unwrap())
     }
+    pub fn read_slice(&mut self, n: usize) -> Result<&'a [u8], Error> {
+        self.take(n)
+    }
 }
 
 #[cfg(test)]
@@ -256,5 +259,88 @@ mod tests {
                 remaining: 3,
             }
         );
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::Reader;
+        use crate::wire::Error;
+
+        #[test]
+        fn read_slice_reads_exact_bytes() {
+            let buf = [1, 2, 3, 4, 5];
+            let mut reader = Reader::new(&buf);
+
+            let slice = reader.read_slice(3).unwrap();
+
+            assert_eq!(slice, &[1, 2, 3]);
+            assert_eq!(reader.position(), 3);
+            assert_eq!(reader.remaining(), 2);
+        }
+
+        #[test]
+        fn read_slice_reads_all_remaining() {
+            let buf = [10, 20, 30];
+            let mut reader = Reader::new(&buf);
+
+            let slice = reader.read_slice(3).unwrap();
+
+            assert_eq!(slice, &[10, 20, 30]);
+            assert_eq!(reader.position(), 3);
+            assert_eq!(reader.remaining(), 0);
+        }
+
+        #[test]
+        fn read_slice_multiple_reads() {
+            let buf = [1, 2, 3, 4];
+            let mut reader = Reader::new(&buf);
+
+            let a = reader.read_slice(2).unwrap();
+            let b = reader.read_slice(2).unwrap();
+
+            assert_eq!(a, &[1, 2]);
+            assert_eq!(b, &[3, 4]);
+            assert_eq!(reader.remaining(), 0);
+        }
+
+        #[test]
+        fn read_slice_zero_length() {
+            let buf = [1, 2, 3];
+            let mut reader = Reader::new(&buf);
+
+            let slice = reader.read_slice(0).unwrap();
+
+            assert_eq!(slice, &[]);
+            assert_eq!(reader.position(), 0);
+            assert_eq!(reader.remaining(), 3);
+        }
+
+        #[test]
+        fn read_slice_returns_error_when_not_enough_bytes() {
+            let buf = [1, 2];
+            let mut reader = Reader::new(&buf);
+
+            let err = reader.read_slice(3).unwrap_err();
+
+            assert_eq!(
+                err,
+                Error::UnexpectedEof {
+                    position: 0,
+                    needed: 3,
+                    remaining: 2,
+                }
+            );
+        }
+
+        #[test]
+        fn read_slice_error_does_not_advance_position() {
+            let buf = [1, 2];
+            let mut reader = Reader::new(&buf);
+
+            let _ = reader.read_slice(3);
+
+            assert_eq!(reader.position(), 0);
+            assert_eq!(reader.remaining(), 2);
+        }
     }
 }
