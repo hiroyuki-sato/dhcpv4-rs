@@ -11,6 +11,7 @@ pub enum Dhcpv4Error {
     InvalidMessageType(u8),
     InvalidOptionFormat,
     InvalidOptionLength(u8),
+    InvalidHardwareAddressLength(u8),
 }
 
 impl From<wire::Error> for Dhcpv4Error {
@@ -31,6 +32,9 @@ impl core::fmt::Display for Dhcpv4Error {
             }
             Self::InvalidOptionFormat => write!(f, "invalid DHCP option format"),
             Self::InvalidOptionLength(l) => write!(f, "invalid DHCP option length: {}", l),
+            Self::InvalidHardwareAddressLength(l) => {
+                write!(f, "invalid hardware address length: {}", l)
+            }
         }
     }
 }
