@@ -1,1 +1,1 @@
-mod wire;
+pub mod wire;
